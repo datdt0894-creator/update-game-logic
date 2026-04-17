@@ -23,18 +23,26 @@ class GameLogic:
             return
 
         start_time = time.time()
-        
-        # Lấy đường đi TRỰC TIẾP từ thuật toán AI (không qua Controller trung gian)
-        path, visited = ai_algorithm.get_path(self.snake.head(), self.food.position, self.snake.body, self.grid_size)
+
+        head = self.snake.head()
+        body = self.snake.body
+
+        # 1. Tìm đường tới food
+        path, visited = ai_algorithm.get_path(head, self.food.position, body, self.grid_size)
         self.current_path = path
         self.visited_nodes = visited
 
         next_head = None
+
+        # 2. Nếu có path → kiểm tra an toàn
         if path and len(path) > 0:
-            next_head = path[0]
+            if self._is_safe_path(path):
+                next_head = path[0]
+            else:
+                next_head = self._follow_tail(ai_algorithm)
         else:
-            # Fallback cũ: Nếu không thấy đường tới thức ăn, gọi hàm sinh tồn cơ bản
-            next_head = self._get_fallback_move()
+            # Không có đường → đi theo đuôi
+            next_head = self._follow_tail(ai_algorithm)
 
         self.last_step_time = time.time() - start_time
 
@@ -51,11 +59,47 @@ class GameLogic:
         else:
             self.snake.shrink()
 
+    # =========================
+    # 🔥 SMART LOGIC
+    # =========================
+
+    def _is_safe_path(self, path):
+        """
+        Giả lập đi theo path tới food,
+        sau đó kiểm tra còn đường tới đuôi không
+        """
+        temp_body = self.snake.body.copy()
+
+        for step in path:
+            temp_body.insert(0, step)
+            temp_body.pop()
+
+        tail = temp_body[-1]
+
+        from ai.bfs import BFS
+        bfs = BFS()
+
+        new_path, _ = bfs.get_path(temp_body[0], tail, temp_body, self.grid_size)
+
+        return new_path is not None and len(new_path) > 0
+
+    def _follow_tail(self, ai_algorithm):
+        """
+        Khi không an toàn → đi theo đuôi để sống lâu
+        """
+        head = self.snake.head()
+        tail = self.snake.body[-1]
+
+        path, _ = ai_algorithm.get_path(head, tail, self.snake.body, self.grid_size)
+
+        if path and len(path) > 0:
+            return path[0]
+
+        return self._get_fallback_move()
+
     def _get_fallback_move(self):
-        """ 
-        Logic fallback cơ bản: 
-        Chỉ nhìn trước 1 bước (Look-ahead 1 step) để tìm ô nào xung quanh có nhiều khoảng trống nhất. 
-        Bạn có thể thay đổi, phát triển hoặc tối ưu hàm này theo ý thích!
+        """
+        Fallback cuối cùng: chọn ô có nhiều không gian nhất
         """
         head = self.snake.head()
         best_move = None
@@ -63,19 +107,17 @@ class GameLogic:
 
         for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
             nx, ny = head[0] + dx, head[1] + dy
-            # Nếu bước đi tiếp theo nằm trong map và không đâm vào thân rắn
+
             if 0 <= nx < self.grid_size and 0 <= ny < self.grid_size and (nx, ny) not in self.snake.body[:-1]:
                 
-                # Đếm không gian trống quanh ô tiếp theo
                 free_spaces = 0
                 for ddx, ddy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
                     nnx, nny = nx + ddx, ny + ddy
                     if 0 <= nnx < self.grid_size and 0 <= nny < self.grid_size and (nnx, nny) not in self.snake.body:
                         free_spaces += 1
-                
-                # Cập nhật bước đi tối ưu nhất (có nhiều không gian nhất)
+
                 if free_spaces > max_free_spaces:
                     max_free_spaces = free_spaces
                     best_move = (nx, ny)
-                    
+
         return best_move

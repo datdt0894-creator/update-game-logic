@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": "../../../Visua Studio/.vs"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"random": "cpp"
+		}
+	}
+}
