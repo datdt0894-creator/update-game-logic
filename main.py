@@ -6,7 +6,6 @@ from ai.rl import DQNPlaceholder
 from ai.dfs import DFS
 from ai.dijkstra import Dijkstra
 from ai.greedy import Greedy
-from ai.hamiltonian import Hamiltonian
 from ui.panel import ControlPanel
 from ui.components import COLORS
 
@@ -38,7 +37,6 @@ class SimulatorApp:
             "Dijkstra": Dijkstra(),
             "Greedy Best-First": Greedy(),
             "RL (DQN)": DQNPlaceholder(),
-            "Hamiltonian": Hamiltonian(self.grid_size)
         }
 
     def handle_events(self):

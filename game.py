@@ -34,15 +34,16 @@ class GameLogic:
 
         next_head = None
 
-        # 2. Nếu có path → kiểm tra an toàn
+        # 2. Ưu tiên ăn nếu AN TOÀN
         if path and len(path) > 0:
             if self._is_safe_path(path):
                 next_head = path[0]
             else:
-                next_head = self._follow_tail(ai_algorithm)
+                # Không an toàn → tìm đường sống
+                next_head = self._survival_move(ai_algorithm)
         else:
-            # Không có đường → đi theo đuôi
-            next_head = self._follow_tail(ai_algorithm)
+            # Không có đường → sinh tồn
+            next_head = self._survival_move(ai_algorithm)
 
         self.last_step_time = time.time() - start_time
 
@@ -60,14 +61,11 @@ class GameLogic:
             self.snake.shrink()
 
     # =========================
-    # 🔥 SMART LOGIC
+    # 🔥 CORE AI LOGIC
     # =========================
 
     def _is_safe_path(self, path):
-        """
-        Giả lập đi theo path tới food,
-        sau đó kiểm tra còn đường tới đuôi không
-        """
+        """Check: ăn xong có còn đường sống không"""
         temp_body = self.snake.body.copy()
 
         for step in path:
@@ -83,10 +81,21 @@ class GameLogic:
 
         return new_path is not None and len(new_path) > 0
 
+    def _survival_move(self, ai_algorithm):
+        """
+        Logic sinh tồn nâng cao:
+        1. Follow tail
+        2. Nếu không được → chọn ô có nhiều không gian nhất
+        """
+
+        move = self._follow_tail(ai_algorithm)
+        if move:
+            return move
+
+        return self._get_best_safe_move()
+
     def _follow_tail(self, ai_algorithm):
-        """
-        Khi không an toàn → đi theo đuôi để sống lâu
-        """
+        """Đi theo đuôi để không bị kẹt"""
         head = self.snake.head()
         tail = self.snake.body[-1]
 
@@ -95,29 +104,58 @@ class GameLogic:
         if path and len(path) > 0:
             return path[0]
 
-        return self._get_fallback_move()
+        return None
 
-    def _get_fallback_move(self):
+    def _get_best_safe_move(self):
         """
-        Fallback cuối cùng: chọn ô có nhiều không gian nhất
+        Chọn bước có KHÔNG GIAN LỚN NHẤT (flood fill)
         """
         head = self.snake.head()
         best_move = None
-        max_free_spaces = -1
+        max_space = -1
 
-        for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+        for dx, dy in [(0,1),(0,-1),(1,0),(-1,0)]:
             nx, ny = head[0] + dx, head[1] + dy
 
-            if 0 <= nx < self.grid_size and 0 <= ny < self.grid_size and (nx, ny) not in self.snake.body[:-1]:
-                
-                free_spaces = 0
-                for ddx, ddy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
-                    nnx, nny = nx + ddx, ny + ddy
-                    if 0 <= nnx < self.grid_size and 0 <= nny < self.grid_size and (nnx, nny) not in self.snake.body:
-                        free_spaces += 1
+            if not self._is_valid(nx, ny):
+                continue
 
-                if free_spaces > max_free_spaces:
-                    max_free_spaces = free_spaces
-                    best_move = (nx, ny)
+            space = self._flood_fill((nx, ny))
+
+            if space > max_space:
+                max_space = space
+                best_move = (nx, ny)
 
         return best_move
+
+    def _flood_fill(self, start):
+        """Đếm số ô trống có thể đi (rất quan trọng)"""
+        stack = [start]
+        visited = set()
+        body = set(self.snake.body)
+
+        count = 0
+
+        while stack:
+            x, y = stack.pop()
+
+            if (x, y) in visited or (x, y) in body:
+                continue
+
+            if not (0 <= x < self.grid_size and 0 <= y < self.grid_size):
+                continue
+
+            visited.add((x, y))
+            count += 1
+
+            for dx, dy in [(0,1),(0,-1),(1,0),(-1,0)]:
+                stack.append((x+dx, y+dy))
+
+        return count
+
+    def _is_valid(self, x, y):
+        return (
+            0 <= x < self.grid_size and
+            0 <= y < self.grid_size and
+            (x, y) not in self.snake.body[:-1]
+        )
