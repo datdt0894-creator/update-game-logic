@@ -7,3 +7,4 @@
 + Đi theo đuôi
 + Tìm vùng rộng
 4. Quyết định nhiều tầng: Không còn kiểu “1 lựa chọn duy nhất”, 'nghĩa là trước khi đi, nó phải qua nhiều bước kiểm tra chứ không quyết định ngay'
+  **Nhưng khi >1500 điểm thì rắn hay bị chết ngu**
